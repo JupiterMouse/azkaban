@@ -26,9 +26,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
@@ -429,6 +431,12 @@ public class MockExecutorLoader implements ExecutorLoader {
   @Override
   public List<Pair<ExecutionReference, ExecutableFlow>> fetchQueuedFlows()
       throws ExecutorManagerException {
+    return fetchQueuedFlows(Status.PREPARING);
+  }
+
+  @Override
+  public List<Pair<ExecutionReference, ExecutableFlow>> fetchQueuedFlows(Status status)
+      throws ExecutorManagerException {
     final List<Pair<ExecutionReference, ExecutableFlow>> queuedFlows =
         new ArrayList<>();
     for (final int execId : this.refs.keySet()) {
@@ -484,27 +492,39 @@ public class MockExecutorLoader implements ExecutorLoader {
   }
 
   @Override
+  public Set<Integer> selectAndUpdateExecutionWithLocking(final boolean batchEnabled,
+      final int limit,
+      final Status updatedStatus) throws ExecutorManagerException {
+    final Set<Integer> executions = new HashSet<>();
+    executions.add(1);
+    return executions;
+  }
+
+  @Override
   public ExecutableRampMap fetchExecutableRampMap() throws ExecutorManagerException {
     ExecutableRampMap map = ExecutableRampMap.createInstance();
     map.add("rampId",
-        ExecutableRamp.createInstance(
-        "dali",
-        "RampPolicy",
-        5,
-        10,
-        false,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        false,
-        0,
-        true
-        )
+        ExecutableRamp.builder("dali", "RampPolicy")
+            .setMetadata(ExecutableRamp.Metadata.builder()
+                .setMaxFailureToPause(5)
+                .setMaxFailureToRampDown(10)
+                .setPercentageScaleForMaxFailure(false)
+                .build())
+            .setState(ExecutableRamp.State.builder()
+                .setStartTime(0)
+                .setEndTime(0)
+                .setLastUpdatedTime(0)
+                .setNumOfTrail(0)
+                .setNumOfSuccess(0)
+                .setNumOfFailure(0)
+                .setNumOfIgnored(0)
+                .setPaused(false)
+                .setRampStage(0)
+                .setActive(true)
+                .build())
+            .build()
     );
+
     return map;
   }
 

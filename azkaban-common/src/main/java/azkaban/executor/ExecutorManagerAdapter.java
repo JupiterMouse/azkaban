@@ -16,14 +16,13 @@
 
 package azkaban.executor;
 
+import azkaban.DispatchMethod;
 import azkaban.project.Project;
 import azkaban.utils.FileIOUtils.LogData;
 import azkaban.utils.Pair;
 import java.io.IOException;
 import java.lang.Thread.State;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +43,11 @@ public interface ExecutorManagerAdapter {
 
   public long getAgedQueuedFlowSize();
 
+<<<<<<< HEAD
+=======
+  public DispatchMethod getDispatchMethod();
+
+>>>>>>> office/master
   /**
    * <pre>
    * Returns All running with executors and queued flows
@@ -108,6 +112,7 @@ public interface ExecutorManagerAdapter {
   public Map<String, String> doRampActions(List<Map<String, Object>> rampAction)
       throws ExecutorManagerException;
 
+  Status getStartStatus();
   /**
    * Manage servlet call for stats servlet in Azkaban execution server Action can take any of the
    * following values <ul> <li>{@link azkaban.executor.ConnectorParams#STATS_SET_REPORTINGINTERVAL}<li>

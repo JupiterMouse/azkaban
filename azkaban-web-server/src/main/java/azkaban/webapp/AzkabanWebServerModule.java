@@ -17,10 +17,16 @@
 
 package azkaban.webapp;
 
+import azkaban.Constants;
 import azkaban.Constants.ConfigurationKeys;
+import azkaban.Constants.ContainerizedExecutionManagerProperties;
+import azkaban.DispatchMethod;
 import azkaban.executor.ExecutionController;
 import azkaban.executor.ExecutorManager;
 import azkaban.executor.ExecutorManagerAdapter;
+import azkaban.executor.container.ContainerizedDispatchManager;
+import azkaban.executor.container.ContainerizedImpl;
+import azkaban.executor.container.ContainerizedImplType;
 import azkaban.flowtrigger.database.FlowTriggerInstanceLoader;
 import azkaban.flowtrigger.database.JdbcFlowTriggerInstanceLoaderImpl;
 import azkaban.flowtrigger.plugin.FlowTriggerDependencyPluginException;
@@ -30,8 +36,12 @@ import azkaban.scheduler.TriggerBasedScheduleLoader;
 import azkaban.user.UserManager;
 import azkaban.user.XmlUserManager;
 import azkaban.utils.Props;
+import azkaban.webapp.metrics.DummyWebMetricsImpl;
+import azkaban.webapp.metrics.WebMetrics;
+import azkaban.webapp.metrics.WebMetricsImpl;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
+import com.google.inject.Scopes;
 import java.lang.reflect.Constructor;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -79,11 +89,35 @@ public class AzkabanWebServerModule extends AbstractModule {
     bind(ScheduleLoader.class).to(TriggerBasedScheduleLoader.class);
     bind(FlowTriggerInstanceLoader.class).to(JdbcFlowTriggerInstanceLoaderImpl.class);
     bind(ExecutorManagerAdapter.class).to(resolveExecutorManagerAdaptorClassType());
+    bind(WebMetrics.class).to(resolveWebMetricsClass()).in(Scopes.SINGLETON);
+  }
+
+  private Class<? extends ContainerizedImpl> resolveContainerizedImpl() {
+    final String containerizedImplProperty =
+        props.getString(ContainerizedExecutionManagerProperties.CONTAINERIZED_IMPL_TYPE,
+            ContainerizedImplType.KUBERNETES.name())
+            .toUpperCase();
+    return ContainerizedImplType.valueOf(containerizedImplProperty).getImplClass();
   }
 
   private Class<? extends ExecutorManagerAdapter> resolveExecutorManagerAdaptorClassType() {
-    return this.props.getBoolean(ConfigurationKeys.AZKABAN_POLL_MODEL, false)
-        ? ExecutionController.class : ExecutorManager.class;
+    switch (DispatchMethod.getDispatchMethod(this.props
+        .getString(Constants.ConfigurationKeys.AZKABAN_EXECUTION_DISPATCH_METHOD,
+            DispatchMethod.PUSH.name()))) {
+      case POLL:
+        return ExecutionController.class;
+      case CONTAINERIZED:
+        bind(ContainerizedImpl.class).to(resolveContainerizedImpl());
+        return ContainerizedDispatchManager.class;
+      case PUSH:
+      default:
+        return ExecutorManager.class;
+    }
+  }
+
+  private Class<? extends WebMetrics> resolveWebMetricsClass() {
+    return this.props.getBoolean(ConfigurationKeys.IS_METRICS_ENABLED, false) ? WebMetricsImpl.class
+        : DummyWebMetricsImpl.class;
   }
 
   @Inject
